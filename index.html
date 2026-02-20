@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyTrack - 3D Global Tracker</title>
+    <style>
+        :root {
+            --primary: #00f2ff;
+            --secondary: #7b2cbf;
+            --dark: #0a0a0f;
+            --glow: 0 0 20px #00f2ff, 0 0 40px #00f2ff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background: var(--dark);
+            color: white;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* --- 3D BACKGROUND --- */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #000 100%);
+        }
+
+        /* --- HEADER --- */
+        header {
+            padding: 20px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0,242,255,0.2);
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--primary);
+            text-shadow: var(--glow);
+            letter-spacing: 3px;
+        }
+
+        .nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 30px;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+
+        .nav a:hover { color: var(--primary); text-shadow: var(--glow); }
+
+        /* --- MAIN CONTENT --- */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            align-items: center;
+        }
+
+        /* --- SEARCH SECTION --- */
+        .search-section {
+            text-align: center;
+        }
+
+        .search-section h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: glow-text 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow-text {
+            from { filter: drop-shadow(0 0 10px var(--primary)); }
+            to { filter: drop-shadow(0 0 20px var(--secondary)); }
+        }
+
+        .search-box {
+            background: rgba(255,255,255,0.05);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid rgba(0,242,255,0.3);
+            box-shadow: 0 0 30px rgba(0,242,255,0.1);
+            backdrop-filter: blur(10px);
+            margin-top: 30px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 18px;
+            background: rgba(0,0,0,0.5);
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            color: white;
+            font-size: 18px;
+            outline: none;
+            margin-bottom: 15px;
+            transition: 0.3s;
+        }
+
+        .search-box input:focus {
+            box-shadow: var(--glow);
+        }
+
+        .search-box button {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .search-box button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 30px var(--primary);
+        }
+
+        /* --- RESULT SECTION --- */
+        .result-section {
+            display: none;
+            background: rgba(0,0,0,0.7);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid var(--primary);
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .tracking-id {
+            color: var(--primary);
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-shadow: var(--glow);
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 20px;
+            background: var(--primary);
+            color: black;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--primary), var(--secondary));
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 25px;
+            padding-left: 20px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -25px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            background: var(--primary);
+            border-radius: 50%;
+            box-shadow: var(--glow);
+        }
+
+        .timeline-item h4 { color: white; margin-bottom: 5px; }
+        .timeline-item p { color: #888; font-size: 12px; }
+
+        /* --- LIVE LOCATION DOT --- */
+        .location-dot {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+            box-shadow: var(--glow);
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+            .search-section h1 { font-size: 32px; }
+            header { padding: 15px 20px; }
+        }
+    </style>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 3D Background -->
+    <div id="canvas-container"></div>
+
+    <header>
+        <div class="logo">🚀 SKYTRACK</div>
+        <nav class="nav">
+            <a href="#">Home</a>
+            <a href="#">Services</a>
+            <a href="#">Pricing</a>
+            <a href="#">Contact</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <!-- Search Side -->
+        <div class="search-section">
+            <h1>Global Package<br>Tracking</h1>
+            <p style="color: #888; margin-top: 10px;">Real-time 3D Location Tracking</p>
+            
+            <div class="search-box">
+                <input type="text" id="trackingInput" placeholder="Enter Tracking ID">
+                <button onclick="trackPackage()">Track Now</button>
+            </div>
+        </div>
+
+        <!-- Result Side -->
+        <div class="result-section" id="result">
+            <div class="tracking-id" id="displayId">#TRK12345</div>
+            <div class="status" id="displayStatus">IN TRANSIT</div>
+            
+            <div class="timeline" id="timeline">
+                <!-- JS will populate this -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js for 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // --- 3D EARTH SCENE ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // Create Earth
+        const geometry = new THREE.SphereGeometry(5, 64, 64);
+        
+        // Earth Material with glow effect
+        const material = new THREE.MeshPhongMaterial({
+            color: 0x1a237e,
+            emissive: 0x112244,
+            specular: 0x333333,
+            shininess: 15,
+            wireframe: false
+        });
+        
+        const earth = new THREE.Mesh(geometry, material);
+        scene.add(earth);
+
+        // Create Grid Lines (Lat/Long)
+        const gridGeometry = new THREE.SphereGeometry(5.1, 24, 24);
+        const gridMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00f2ff,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.1
+        });
+        const grid = new THREE.Mesh(gridGeometry, gridMaterial);
+        scene.add(grid);
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0x404040, 2);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0x00f2ff, 2, 50);
+        pointLight.position.set(10, 10, 10);
+        scene.add(pointLight);
+
+        const purpleLight = new THREE.PointLight(0x7b2cbf, 1, 50);
+        purpleLight.position.set(-10, -5, 10);
+        scene.add(purpleLight);
+
+        camera.position.z = 15;
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            earth.rotation.y += 0.002;
+            grid.rotation.y += 0.002;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle Window Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // --- TRACKING LOGIC ---
+        const trackingData = {
+            "TRK123": {
+                status: "IN TRANSIT",
+                updates: [
+                    { loc: "New York, USA", time: "Oct 24, 2023 - 08:00 AM" },
+                    { loc: "London, UK", time: "Oct 23, 2023 - 02:00 PM" },
+                    { loc: "Mumbai, India", time: "Oct 22, 2023 - 10:00 AM" }
+                ]
+            },
+            "SHIP456": {
+                status: "DELIVERED",
+                updates: [
+                    { loc: "Delivered - Tokyo, Japan", time: "Delivered" },
+                    { loc: "Out for Delivery", time: "Oct 20, 2023 - 06:00 AM" }
+                ]
+            }
+        };
+
+        function trackPackage() {
+            const input = document.getElementById('trackingInput').value.trim().toUpperCase();
+            const result = document.getElementById('result');
+            const timeline = document.getElementById('timeline');
+            
+            if(trackingData[input]) {
+                document.getElementById('displayId').textContent = '#' + input;
+                document.getElementById('displayStatus').textContent = trackingData[input].status;
+                
+                timeline.innerHTML = '';
+                trackingData[input].updates.forEach(u => {
+                    timeline.innerHTML += `
+                        <div class="timeline-item">
+                            <h4>${u.loc}</h4>
+                            <p>${u.time}</p>
+                        </div>
+                    `;
+                });
+                
+                result.style.display = 'block';
+            } else {
+                alert('Tracking ID not found! Try TRK123 or SHIP456');
+            }
+        }
+    </script>
+</body>
+</html>
